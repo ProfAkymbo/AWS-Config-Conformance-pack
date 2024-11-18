@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ''
+Resources:
+  ConfigRule:
+    Type: 'AWS::Config::ConfigRule'
+    Properties:
+      ConfigRuleName: desired-instance-tags
+      Scope:
+        ComplianceResourceTypes:
+          - 'AWS::EC2::Instance'
+      Description: Auto remediation configuration to stop or terminate EC2 instances using unapproved tags. Detection uses a managed AWS Config Rule and remediation is with SSM Automation.
+      Source:
+        Owner: AWS
+        SourceIdentifier: "REQUIRED_TAGS"
+      InputParameters:
+        tag1Key: "managedby"
+  
+  RemediationForConfigRule:
+    Type: 'AWS::Config::RemediationConfiguration'
+    Properties:
+      Automatic: true
+      ConfigRuleName:
+        Ref: ConfigRule
+      MaximumAutomaticAttempts: 5
+      RetryAttemptSeconds: 60
+      TargetId: AWS-TerminateEC2Instance
+      TargetType: SSM_DOCUMENT
+      TargetVersion: '1'
+      Parameters:
+        AutomationAssumeRole:
+          StaticValue:
+            Values:
+              - 'Fn::GetAtt':
+                  - AutoRemediationIamRole
+                  - Arn
+        InstanceId:
+          ResourceValue:
+            Value: RESOURCE_ID
+  AutoRemediationIamRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - events.amazonaws.com
+                - ssm.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole'
+  AutomationPassRolePolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: passAutomationRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'iam:PassRole'
+            Resource:
+              'Fn::GetAtt':
+                - AutoRemediationIamRole
+                - Arn
+      Roles:
+        - Ref: AutoRemediationIamRole
+Parameters: {}
+Metadata: {}
+Conditions: {}

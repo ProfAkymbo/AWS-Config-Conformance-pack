@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Creates an AWS Config rule to enforce tagging on EC2 instances'
+
+Resources:
+  EnforceEC2TaggingRule:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: EnforceEC2Tagging
+      Source:
+        Owner: AWS
+        SourceIdentifier: "REQUIRED_TAGS"
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::EC2::Instance
+      InputParameters: |
+        {"tag1Key": "managedby"}
+      
